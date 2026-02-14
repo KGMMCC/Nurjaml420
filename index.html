@@ -1,560 +1,314 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>নুরুজ্জামানের চায়ের দোকান | আড্ডা ও হিসাব</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Call Breeze Pro v5.0 | আল্ট্রা প্রিমিয়াম কল ব্রিজ</title>
+  
+  <!-- ফন্ট & আইকন -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <!-- কাস্টম CSS -->
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <!-- লোডিং স্ক্রিন -->
-    <div id="loadingScreen" class="loading-screen">
-        <div class="loading-content">
-            <div class="tea-cup">
-                <div class="cup"></div>
-                <div class="steam"></div>
-                <div class="steam steam2"></div>
-                <div class="steam steam3"></div>
-            </div>
-            <h2 class="loading-text">নুরুজ্জামানের চায়ের দোকান</h2>
-            <p class="loading-subtext">গরিব এর হিসাবের ডিজিটাল সমাধান</p>
-        </div>
-    </div>
+<body class="theme-pro">
+  <!-- অ্যানিমেটেড ব্যাকগ্রাউন্ড -->
+  <div class="gradient-bg">
+    <div class="gradient-1"></div>
+    <div class="gradient-2"></div>
+    <div class="gradient-3"></div>
+  </div>
 
-    <!-- অথেন্টিকেশন পেজ -->
-    <div id="authPage" class="page">
-        <header class="main-header">
-            <div class="header-background"></div>
-            <div class="header-content animate__animated animate__fadeInDown">
-                <div class="logo-container">
-                    <div class="logo-icon">
-                        <i class="fas fa-mug-hot"></i>
-                    </div>
-                    <h1 class="logo-text">নুরুজ্জামানের চায়ের দোকান</h1>
-                </div>
-                <p class="tagline">যেখানে আড্ডা হয়, হিসাবও থাকে</p>
-            </div>
-        </header>
+  <!-- পার্টিকেল ইফেক্ট -->
+  <div id="particles" class="particles"></div>
 
-        <div class="container">
-            <!-- ট্যাব সিস্টেম -->
-            <div class="tab-container">
-                <div class="tabs">
-                    <button id="loginTab" class="tab-btn active" onclick="switchTab('login')">
-                        <i class="fas fa-sign-in-alt"></i> লগইন
-                    </button>
-                    <button id="registerTab" class="tab-btn" onclick="switchTab('register')">
-                        <i class="fas fa-user-plus"></i> রেজিস্টার
-                    </button>
-                </div>
-
-                <!-- লগইন ফর্ম -->
-                <div id="loginForm" class="tab-content active">
-                    <div class="form-card animate__animated animate__fadeIn">
-                        <h2><i class="fas fa-sign-in-alt"></i> একাউন্টে লগইন করুন</h2>
-                        <form id="loginFormElement">
-                            <div class="input-group">
-                                <label for="loginEmail"><i class="fas fa-envelope"></i> ইমেইল</label>
-                                <input type="email" id="loginEmail" placeholder="আপনার ইমেইল দিন" required>
-                            </div>
-                            <div class="input-group">
-                                <label for="loginPassword"><i class="fas fa-lock"></i> পাসওয়ার্ড</label>
-                                <input type="password" id="loginPassword" placeholder="পাসওয়ার্ড দিন" required>
-                                <div class="password-toggle" onclick="togglePassword('loginPassword')">
-                                    <i class="fas fa-eye"></i>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-paper-plane"></i> লগইন করুন
-                            </button>
-                        </form>
-                        <p class="form-footer">নতুন বন্ধু? <a href="#" onclick="switchTab('register')">এখানে রেজিস্টার করুন</a></p>
-                    </div>
-                </div>
-
-                <!-- রেজিস্টার ফর্ম -->
-                <div id="registerForm" class="tab-content">
-                    <div class="form-card animate__animated animate__fadeIn">
-                        <h2><i class="fas fa-user-plus"></i> নতুন একাউন্ট তৈরি করুন</h2>
-                        <form id="registerFormElement">
-                            <div class="input-group">
-                                <label for="registerName"><i class="fas fa-user"></i> আপনার নাম</label>
-                                <input type="text" id="registerName" placeholder="পুরো নাম লিখুন" required>
-                            </div>
-                            <div class="input-group">
-                                <label for="registerEmail"><i class="fas fa-envelope"></i> ইমেইল</label>
-                                <input type="email" id="registerEmail" placeholder="ইমেইল ঠিকানা" required>
-                            </div>
-                            <div class="input-group">
-                                <label for="registerPassword"><i class="fas fa-lock"></i> পাসওয়ার্ড</label>
-                                <input type="password" id="registerPassword" placeholder="শক্তিশালী পাসওয়ার্ড দিন" required>
-                                <div class="password-toggle" onclick="togglePassword('registerPassword')">
-                                    <i class="fas fa-eye"></i>
-                                </div>
-                            </div>
-                            <div class="input-group">
-                                <label for="confirmPassword"><i class="fas fa-lock"></i> পাসওয়ার্ড নিশ্চিত করুন</label>
-                                <input type="password" id="confirmPassword" placeholder="পাসওয়ার্ড আবার দিন" required>
-                                <div class="password-toggle" onclick="togglePassword('confirmPassword')">
-                                    <i class="fas fa-eye"></i>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-user-plus"></i> একাউন্ট তৈরি করুন
-                            </button>
-                        </form>
-                        <p class="form-footer">ইতিমধ্যে একাউন্ট আছে? <a href="#" onclick="switchTab('login')">এখানে লগইন করুন</a></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ব্যবহারকারী তালিকা -->
-            <div class="user-list-card">
-                <h3><i class="fas fa-users"></i> আমাদের বন্ধুদের তালিকা</h3>
-                <div id="userList" class="user-list">
-                    <!-- ব্যবহারকারীরা এখানে লোড হবে -->
-                    <p class="empty-message">এখনো কোনো বন্ধু রেজিস্টার করেননি...</p>
-                </div>
-            </div>
+  <div class="app-wrapper">
+    <!-- সাইডবার -->
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        <!-- লোগো -->
+        <div class="logo-container">
+          <div class="logo-icon">
+            <i class="fas fa-wind"></i>
+          </div>
+          <div class="logo-text">
+            <span class="logo-main">Call Breeze</span>
+            <span class="logo-badge">PRO v5.0</span>
+          </div>
         </div>
 
-        <footer class="auth-footer">
-            <p>© ২০২৩ নুরুজ্জামানের চায়ের দোকান | বন্ধুত্ব আর আড্ডার ডিজিটাল হিসাব</p>
-        </footer>
-    </div>
+        <!-- নেভিগেশন মেনু -->
+        <nav class="sidebar-nav">
+          <div class="nav-item active" onclick="switchPanel('setup')">
+            <i class="fas fa-users"></i>
+            <span>সেটআপ</span>
+            <div class="nav-indicator"></div>
+          </div>
+          <div class="nav-item" onclick="switchPanel('game')">
+            <i class="fas fa-gamepad"></i>
+            <span>গেম</span>
+            <div class="nav-indicator"></div>
+          </div>
+          <div class="nav-item" onclick="openLeaderboard()">
+            <i class="fas fa-trophy"></i>
+            <span>লিডারবোর্ড</span>
+            <div class="nav-indicator"></div>
+          </div>
+          <div class="nav-item" onclick="openHistory()">
+            <i class="fas fa-clock-rotate-left"></i>
+            <span>হিস্ট্রি</span>
+            <div class="nav-indicator"></div>
+          </div>
+        </nav>
 
-    <!-- মেইন অ্যাপ্লিকেশন পেজ -->
-    <div id="appPage" class="page hidden">
-        <!-- হেডার -->
-        <header class="app-header">
-            <div class="header-top">
-                <div class="header-left">
-                    <div class="logo-small">
-                        <i class="fas fa-mug-hot"></i>
-                        <span>নুরুজ্জামানের দোকান</span>
-                    </div>
-                </div>
-                <div class="header-center">
-                    <h1>আজ কী খেলাম?</h1>
-                </div>
-                <div class="header-right">
-                    <div class="user-profile">
-                        <div class="user-avatar" id="userAvatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="user-info">
-                            <span id="userName">বন্ধু</span>
-                            <button class="btn-logout" onclick="logout()">
-                                <i class="fas fa-sign-out-alt"></i> লগআউট
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- মূল নেভিগেশন -->
-            <nav class="main-nav">
-                <button class="nav-btn active" onclick="showSection('home')">
-                    <i class="fas fa-home"></i> হোম
-                </button>
-                <button class="nav-btn" onclick="showSection('addEntry')">
-                    <i class="fas fa-plus-circle"></i> যোগ করুন
-                </button>
-                <button class="nav-btn" onclick="showSection('ledger')">
-                    <i class="fas fa-book"></i> হিসাব বই
-                </button>
-                <button class="nav-btn" onclick="showSection('friends')">
-                    <i class="fas fa-users"></i> বন্ধুদের
-                </button>
-                <button class="nav-btn" onclick="showSection('profile')">
-                    <i class="fas fa-user-cog"></i> প্রোফাইল
-                </button>
-            </nav>
-        </header>
+        <!-- থিম সুইচার ও ফুটার -->
+        <div class="sidebar-footer">
+          <div class="theme-selector">
+            <button class="theme-option active" onclick="setTheme('pro')" title="প্রো থিম">
+              <i class="fas fa-gem"></i>
+            </button>
+            <button class="theme-option" onclick="setTheme('dark')" title="ডার্ক থিম">
+              <i class="fas fa-moon"></i>
+            </button>
+            <button class="theme-option" onclick="setTheme('light')" title="লাইট থিম">
+              <i class="fas fa-sun"></i>
+            </button>
+          </div>
+          <div class="version-info">
+            <i class="fas fa-code-branch"></i>
+            <span>v5.0.0 · প্রিমিয়াম</span>
+          </div>
+        </div>
+      </div>
+    </aside>
 
-        <div class="app-container">
-            <!-- হোম সেকশন -->
-            <section id="homeSection" class="section active">
-                <div class="welcome-card animate__animated animate__fadeIn">
-                    <h2><i class="fas fa-hand-wave"></i> আসসালামু আলাইকুম <span id="welcomeName">বন্ধু</span>!</h2>
-                    <p>আপনার আজকের আড্ডা ও হিসাব এখানে সংরক্ষণ করুন। চা-নাস্তা থেকে শুরু করে সবকিছু!</p>
-                </div>
-
-                <!-- আজকের স্ট্যাটাস -->
-                <div class="stats-container">
-                    <div class="stat-card stat-1">
-                        <div class="stat-icon">
-                            <i class="fas fa-coins"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>আজকের খরচ</h3>
-                            <p id="todayExpense" class="stat-value">0 টাকা</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-2">
-                        <div class="stat-icon">
-                            <i class="fas fa-calendar-day"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>এই মাসের খরচ</h3>
-                            <p id="monthExpense" class="stat-value">0 টাকা</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-3">
-                        <div class="stat-icon">
-                            <i class="fas fa-history"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>মোট এন্ট্রি</h3>
-                            <p id="totalEntries" class="stat-value">0</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-4">
-                        <div class="stat-icon">
-                            <i class="fas fa-hand-holding-usd"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>বাকি আছে</h3>
-                            <p id="totalDue" class="stat-value">0 টাকা</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- দ্রুত যোগ করার ফর্ম -->
-                <div class="quick-add-card">
-                    <h3><i class="fas fa-bolt"></i> দ্রুত যোগ করুন</h3>
-                    <div class="quick-items">
-                        <div class="quick-item" onclick="quickAdd('চা', 1)">
-                            <div class="quick-icon">
-                                <i class="fas fa-coffee"></i>
-                            </div>
-                            <span>চা</span>
-                            <small>5 টাকা</small>
-                        </div>
-                        <div class="quick-item" onclick="quickAdd('দুধ চা', 1)">
-                            <div class="quick-icon">
-                                <i class="fas fa-mug-hot"></i>
-                            </div>
-                            <span>দুধ চা</span>
-                            <small>10 টাকা</small>
-                        </div>
-                        <div class="quick-item" onclick="quickAdd('রয়েল', 1)">
-                            <div class="quick-icon">
-                                <i class="fas fa-cookie"></i>
-                            </div>
-                            <span>রয়েল</span>
-                            <small>7 টাকা</small>
-                        </div>
-                        <div class="quick-item" onclick="quickAdd('লাকি', 1)">
-                            <div class="quick-icon">
-                                <i class="fas fa-bread-slice"></i>
-                            </div>
-                            <span>লাকি</span>
-                            <small>12 টাকা</small>
-                        </div>
-                        <div class="quick-item" onclick="quickAdd('কলা', 1)">
-                            <div class="quick-icon">
-                                <i class="fas fa-apple-alt"></i>
-                            </div>
-                            <span>কলা</span>
-                            <small>8 টাকা</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- সাম্প্রতিক লেনদেন -->
-                <div class="recent-transactions">
-                    <h3><i class="fas fa-history"></i> সাম্প্রতিক লেনদেন</h3>
-                    <div id="recentTransactions" class="transactions-list">
-                        <!-- লেনদেন লোড হবে -->
-                        <p class="empty-message">এখনো কোনো লেনদেন নেই। প্রথম লেনদেন যোগ করুন!</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- এন্ট্রি যোগ করার সেকশন -->
-            <section id="addEntrySection" class="section">
-                <div class="entry-form-card animate__animated animate__fadeIn">
-                    <h2><i class="fas fa-plus-circle"></i> নতুন এন্ট্রি যোগ করুন</h2>
-                    <form id="entryForm">
-                        <div class="form-row">
-                            <div class="input-group half">
-                                <label for="item"><i class="fas fa-utensils"></i> আইটেম নির্বাচন করুন</label>
-                                <select id="item" required>
-                                    <option value="">একটি আইটেম নির্বাচন করুন</option>
-                                    <option value="চা">চা - 5 টাকা</option>
-                                    <option value="দুধ চা">দুধ চা - 10 টাকা</option>
-                                    <option value="রয়েল">রয়েল বিস্কুট - 7 টাকা</option>
-                                    <option value="লাকি">লাকি বিস্কুট - 12 টাকা</option>
-                                    <option value="কলা">কলা - 8 টাকা</option>
-                                    <option value="সিগারেট">সিগারেট - 15 টাকা</option>
-                                    <option value="পান">পান - 10 টাকা</option>
-                                    <option value="অন্যান্য">অন্যান্য - নির্ধারণ করুন</option>
-                                </select>
-                            </div>
-                            <div class="input-group half">
-                                <label for="customItem" id="customItemLabel" class="hidden"><i class="fas fa-pen"></i> কাস্টম আইটেম নাম</label>
-                                <input type="text" id="customItem" class="hidden" placeholder="আইটেমের নাম লিখুন">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="input-group half">
-                                <label for="quantity"><i class="fas fa-sort-amount-up"></i> পরিমাণ</label>
-                                <div class="quantity-control">
-                                    <button type="button" class="qty-btn" onclick="changeQuantity(-1)">-</button>
-                                    <input type="number" id="quantity" value="1" min="1" max="100" required>
-                                    <button type="button" class="qty-btn" onclick="changeQuantity(1)">+</button>
-                                </div>
-                            </div>
-                            <div class="input-group half">
-                                <label for="customPrice" id="customPriceLabel" class="hidden"><i class="fas fa-tag"></i> কাস্টম মূল্য (টাকা)</label>
-                                <input type="number" id="customPrice" class="hidden" min="1" placeholder="মূল্য লিখুন">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="input-group half">
-                                <label for="price"><i class="fas fa-money-bill-wave"></i> প্রতি ইউনিট মূল্য</label>
-                                <input type="number" id="price" value="5" readonly>
-                            </div>
-                            <div class="input-group half">
-                                <label for="totalPrice"><i class="fas fa-calculator"></i> মোট মূল্য</label>
-                                <input type="number" id="totalPrice" value="5" readonly>
-                            </div>
-                        </div>
-                        
-                        <div class="input-group">
-                            <label for="paymentStatus"><i class="fas fa-credit-card"></i> পেমেন্ট স্ট্যাটাস</label>
-                            <select id="paymentStatus">
-                                <option value="paid">পরিশোধিত</option>
-                                <option value="due" selected>বাকি</option>
-                                <option value="partial">আংশিক</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="input-group half">
-                                <label for="paidAmount"><i class="fas fa-hand-holding-usd"></i> পরিশোধিত টাকা</label>
-                                <input type="number" id="paidAmount" value="0" min="0">
-                            </div>
-                            <div class="input-group half">
-                                <label for="dueAmount"><i class="fas fa-file-invoice-dollar"></i> বাকি টাকা</label>
-                                <input type="number" id="dueAmount" value="5" readonly>
-                            </div>
-                        </div>
-                        
-                        <div class="input-group">
-                            <label for="notes"><i class="fas fa-sticky-note"></i> নোটস (ঐচ্ছিক)</label>
-                            <textarea id="notes" placeholder="যেমন: বিশেষ অনুরোধ, অতিথি ইত্যাদি..."></textarea>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="button" class="btn-secondary" onclick="resetEntryForm()">
-                                <i class="fas fa-redo"></i> রিসেট
-                            </button>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-save"></i> এন্ট্রি সংরক্ষণ করুন
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </section>
-
-            <!-- হিসাব বই সেকশন -->
-            <section id="ledgerSection" class="section">
-                <div class="ledger-header">
-                    <h2><i class="fas fa-book"></i> আমার হিসাব বই</h2>
-                    <div class="ledger-actions">
-                        <button class="btn-secondary" onclick="filterLedger('all')">
-                            <i class="fas fa-list"></i> সব
-                        </button>
-                        <button class="btn-secondary" onclick="filterLedger('today')">
-                            <i class="fas fa-calendar-day"></i> আজ
-                        </button>
-                        <button class="btn-secondary" onclick="filterLedger('due')">
-                            <i class="fas fa-file-invoice-dollar"></i> বাকি
-                        </button>
-                        <button class="btn-secondary" onclick="exportLedger()">
-                            <i class="fas fa-download"></i> এক্সপোর্ট
-                        </button>
-                    </div>
-                </div>
-
-                <div class="ledger-summary">
-                    <div class="summary-item">
-                        <span>মোট খরচ:</span>
-                        <strong id="ledgerTotal">0 টাকা</strong>
-                    </div>
-                    <div class="summary-item">
-                        <span>মোট পরিশোধ:</span>
-                        <strong id="ledgerPaid">0 টাকা</strong>
-                    </div>
-                    <div class="summary-item">
-                        <span>মোট বাকি:</span>
-                        <strong id="ledgerDue">0 টাকা</strong>
-                    </div>
-                    <div class="summary-item">
-                        <span>মোট এন্ট্রি:</span>
-                        <strong id="ledgerEntries">0</strong>
-                    </div>
-                </div>
-
-                <div class="ledger-table-container">
-                    <table class="ledger-table">
-                        <thead>
-                            <tr>
-                                <th><i class="fas fa-calendar"></i> তারিখ</th>
-                                <th><i class="fas fa-utensils"></i> আইটেম</th>
-                                <th><i class="fas fa-sort-amount-up"></i> পরিমাণ</th>
-                                <th><i class="fas fa-money-bill-wave"></i> মূল্য</th>
-                                <th><i class="fas fa-hand-holding-usd"></i> পরিশোধিত</th>
-                                <th><i class="fas fa-file-invoice-dollar"></i> বাকি</th>
-                                <th><i class="fas fa-info-circle"></i> স্ট্যাটাস</th>
-                                <th><i class="fas fa-cog"></i> কাজ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ledgerRows">
-                            <!-- লেজার ডেটা লোড হবে -->
-                            <tr class="empty-row">
-                                <td colspan="8">কোনো এন্ট্রি পাওয়া যায়নি। প্রথম এন্ট্রি যোগ করুন!</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- বন্ধুদের সেকশন -->
-            <section id="friendsSection" class="section">
-                <div class="friends-header">
-                    <h2><i class="fas fa-users"></i> আমাদের বন্ধু পরিবার</h2>
-                    <p>যাদের সাথে আমরা আড্ডা দিই এবং চা-নাস্তা করি</p>
-                </div>
-
-                <div id="friendsList" class="friends-grid">
-                    <!-- বন্ধুদের কার্ড লোড হবে -->
-                    <div class="friend-card placeholder">
-                        <div class="friend-avatar">
-                            <i class="fas fa-user-plus"></i>
-                        </div>
-                        <h3>আপনিই হোন প্রথম</h3>
-                        <p>অন্যান্য বন্ধুদের আমন্ত্রণ জানান</p>
-                    </div>
-                </div>
-
-                <div class="invite-card">
-                    <h3><i class="fas fa-share-alt"></i> বন্ধুকে আমন্ত্রণ জানান</h3>
-                    <p>এই লিংকটি শেয়ার করে নতুন বন্ধুকে যোগ দিন:</p>
-                    <div class="invite-link">
-                        <input type="text" id="inviteLink" value="নুরুজ্জামানের চায়ের দোকান" readonly>
-                        <button class="btn-secondary" onclick="copyInviteLink()">
-                            <i class="fas fa-copy"></i> কপি
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- প্রোফাইল সেকশন -->
-            <section id="profileSection" class="section">
-                <div class="profile-header">
-                    <div class="profile-avatar-large" id="profileAvatar">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <div class="profile-info">
-                        <h2 id="profileName">বন্ধু</h2>
-                        <p id="profileEmail">ইমেইল লোড হচ্ছে...</p>
-                        <div class="member-since">
-                            <i class="fas fa-calendar-check"></i> সদস্য since: <span id="memberSince">লোড হচ্ছে...</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="profile-stats">
-                    <div class="profile-stat">
-                        <div class="stat-number" id="profileTotalSpent">0</div>
-                        <div class="stat-label">মোট খরচ (টাকা)</div>
-                    </div>
-                    <div class="profile-stat">
-                        <div class="stat-number" id="profileTotalEntries">0</div>
-                        <div class="stat-label">মোট এন্ট্রি</div>
-                    </div>
-                    <div class="profile-stat">
-                        <div class="stat-number" id="profileAvgSpent">0</div>
-                        <div class="stat-label">গড়/দিন (টাকা)</div>
-                    </div>
-                    <div class="profile-stat">
-                        <div class="stat-number" id="profileDueAmount">0</div>
-                        <div class="stat-label">বর্তমান বাকি</div>
-                    </div>
-                </div>
-
-                <div class="profile-settings">
-                    <h3><i class="fas fa-cog"></i> অ্যাকাউন্ট সেটিংস</h3>
-                    <div class="settings-form">
-                        <div class="input-group">
-                            <label for="profileNameInput"><i class="fas fa-user"></i> আপনার নাম আপডেট করুন</label>
-                            <input type="text" id="profileNameInput" placeholder="নতুন নাম">
-                        </div>
-                        <div class="input-group">
-                            <label for="profileAvatarColor"><i class="fas fa-palette"></i> প্রোফাইল রঙ পরিবর্তন করুন</label>
-                            <div class="color-picker">
-                                <div class="color-option" style="background-color: #1f7a4d;" onclick="changeAvatarColor('#1f7a4d')"></div>
-                                <div class="color-option" style="background-color: #4a6fa5;" onclick="changeAvatarColor('#4a6fa5')"></div>
-                                <div class="color-option" style="background-color: #d35400;" onclick="changeAvatarColor('#d35400')"></div>
-                                <div class="color-option" style="background-color: #8e44ad;" onclick="changeAvatarColor('#8e44ad')"></div>
-                                <div class="color-option" style="background-color: #c0392b;" onclick="changeAvatarColor('#c0392b')"></div>
-                                <div class="color-option" style="background-color: #16a085;" onclick="changeAvatarColor('#16a085')"></div>
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button class="btn-secondary" onclick="resetProfile()">
-                                <i class="fas fa-redo"></i> রিসেট
-                            </button>
-                            <button class="btn-primary" onclick="updateProfile()">
-                                <i class="fas fa-save"></i> আপডেট করুন
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="danger-zone">
-                    <h3><i class="fas fa-exclamation-triangle"></i> বিপদ এলাকা</h3>
-                    <p>এই ক্রিয়াগুলো বিপরীতমুখী নয়। সাবধানে এগোন</p>
-                    <div class="danger-actions">
-                        <button class="btn-danger" onclick="clearAllData()">
-                            <i class="fas fa-trash-alt"></i> সব ডেটা মুছুন
-                        </button>
-                        <button class="btn-danger" onclick="deleteAccount()">
-                            <i class="fas fa-user-slash"></i> একাউন্ট ডিলিট করুন
-                        </button>
-                    </div>
-                </div>
-            </section>
+    <!-- মেইন কন্টেন্ট এরিয়া -->
+    <main class="main-area">
+      <!-- সেটআপ প্যানেল -->
+      <div id="setupPanel" class="panel active">
+        <div class="panel-header">
+          <div class="header-title">
+            <i class="fas fa-users-gear"></i>
+            <h2>খেলোয়াড় সেটআপ</h2>
+          </div>
+          <div class="header-badge pulse-animation">
+            <i class="fas fa-user-plus"></i>
+            <span>২-৬ প্লেয়ার</span>
+          </div>
         </div>
 
-        <!-- ফ্লোটিং অ্যাকশন বাটন -->
-        <button class="fab" onclick="showSection('addEntry')">
-            <i class="fas fa-plus"></i>
+        <div class="panel-content">
+          <div class="setup-card glass-card">
+            <div class="input-group">
+              <label>
+                <i class="fas fa-hashtag"></i>
+                <span>প্লেয়ার সংখ্যা</span>
+              </label>
+              <div class="counter-input">
+                <button class="counter-btn" onclick="adjustCount(-1)">
+                  <i class="fas fa-minus"></i>
+                </button>
+                <input type="number" id="playerCount" class="count-field" value="4" min="2" max="6" readonly>
+                <button class="counter-btn" onclick="adjustCount(1)">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+            </div>
+
+            <button class="btn-primary btn-block" onclick="generateNameFields()">
+              <i class="fas fa-pen"></i>
+              <span>নামের ফিল্ড তৈরি করুন</span>
+            </button>
+
+            <div id="nameFieldsContainer" class="name-fields-grid"></div>
+
+            <button class="btn-success btn-block btn-large" onclick="startBonusRound()">
+              <i class="fas fa-play"></i>
+              <span>বোনাস রাউন্ড শুরু</span>
+            </button>
+
+            <div class="info-message">
+              <i class="fas fa-info-circle"></i>
+              <p>বোনাস রাউন্ডে কোন কল নেই, শুধু উঠানো সংখ্যা যোগ হবে</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- গেম প্যানেল -->
+      <div id="gamePanel" class="panel">
+        <div class="panel-header">
+          <div class="header-title">
+            <i class="fas fa-dice-d6"></i>
+            <h2 id="roundTitle">বোনাস রাউন্ড</h2>
+          </div>
+          <div class="header-actions">
+            <div class="round-counter">
+              <span class="round-current" id="currentRound">১</span>
+              <span class="round-separator">/</span>
+              <span class="round-total" id="totalRounds">?</span>
+            </div>
+            <button class="btn-danger btn-icon" onclick="endGame()" title="গেম শেষ">
+              <i class="fas fa-flag-checkered"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- লাইভ স্ট্যাটাস বার -->
+        <div class="status-bar" id="statusBar">
+          <div class="status-icon">
+            <i class="fas fa-circle-play"></i>
+          </div>
+          <div class="status-text" id="statusText">বোনাস রাউন্ড চলছে</div>
+          <div class="status-phase" id="statusPhase">🎁</div>
+        </div>
+
+        <!-- বোনাস রাউন্ড এরিয়া -->
+        <div id="bonusArea" class="game-area">
+          <div class="area-header">
+            <h3>
+              <i class="fas fa-gift"></i>
+              বোনাস রাউন্ড
+            </h3>
+          </div>
+          <div id="bonusPlayersGrid" class="players-grid"></div>
+          <button class="btn-gold btn-block btn-large" onclick="submitBonusRound()">
+            <i class="fas fa-check-double"></i>
+            <span>বোনাস রাউন্ড জমা দিন</span>
+          </button>
+        </div>
+
+        <!-- কল রাউন্ড এরিয়া -->
+        <div id="callArea" class="game-area">
+          <!-- কল ফেজ -->
+          <div id="callPhase" class="game-phase">
+            <div class="phase-indicator">
+              <span class="phase-name">কল ফেজ</span>
+              <span class="phase-step">১/২</span>
+            </div>
+            <div id="callPlayersGrid" class="players-grid"></div>
+            <button class="btn-primary btn-block btn-large" onclick="submitCallPhase()">
+              <i class="fas fa-phone"></i>
+              <span>কল সাবমিট করুন</span>
+            </button>
+          </div>
+
+          <!-- ট্রিক ফেজ -->
+          <div id="trickPhase" class="game-phase hidden">
+            <div class="phase-indicator">
+              <span class="phase-name">ট্রিক ফেজ</span>
+              <span class="phase-step">২/২</span>
+            </div>
+            <div id="trickPlayersGrid" class="players-grid"></div>
+            <button class="btn-purple btn-block btn-large" onclick="submitTrickPhase()">
+              <i class="fas fa-hand-peace"></i>
+              <span>ট্রিক সাবমিট করুন</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- স্কোরবোর্ড -->
+        <div class="scoreboard-section">
+          <div class="scoreboard-header">
+            <h4>
+              <i class="fas fa-chart-line"></i>
+              লাইভ স্কোরবোর্ড
+            </h4>
+            <div class="scoreboard-actions">
+              <button class="action-btn" onclick="toggleStats()" title="পরিসংখ্যান">
+                <i class="fas fa-chart-pie"></i>
+              </button>
+              <button class="action-btn" onclick="refreshBoard()" title="রিফ্রেশ">
+                <i class="fas fa-rotate"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="score-table">
+              <thead>
+                <tr>
+                  <th>প্লেয়ার</th>
+                  <th>মোট</th>
+                  <th>সঠিক</th>
+                  <th>বোনাস</th>
+                  <th>ফর্ম</th>
+                </tr>
+              </thead>
+              <tbody id="scoreboardBody"></tbody>
+            </table>
+          </div>
+
+          <!-- স্ট্যাটস প্যানেল -->
+          <div id="statsPanel" class="stats-panel hidden">
+            <h5>
+              <i class="fas fa-chart-simple"></i>
+              রাউন্ড পরিসংখ্যান
+            </h5>
+            <div id="statsGrid" class="stats-grid"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- লিডারবোর্ড মডাল -->
+  <div id="leaderboardModal" class="modal">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-crown"></i>
+          চ্যাম্পিয়নশিপ লিডারবোর্ড
+        </h2>
+        <button class="modal-close" onclick="closeLeaderboard()">
+          <i class="fas fa-times"></i>
         </button>
-
-        <!-- নোটিফিকেশন এলাকা -->
-        <div id="notificationArea" class="notification-area"></div>
-
-        <footer class="app-footer">
-            <p>© ২০২৩ সিয়াম মাহামুদ মুক্তি | গরিব এর
-         ডিজিটাল সমাধান</p>
-            <p class="footer-links">
-                <a href="#" onclick="showSection('home')">হোম</a> | 
-                <a href="#" onclick="showSection('ledger')">হিসাব বই</a> | 
-                <a href="#" onclick="showSection('friends')">বন্ধুরা</a> | 
-                <a href="#" onclick="showSection('profile')">প্রোফাইল</a>
-            </p>
-        </footer>
+      </div>
+      <div class="modal-body">
+        <div id="podiumContainer" class="podium"></div>
+        <div id="leaderboardList" class="leaderboard-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-success" onclick="newGame()">
+          <i class="fas fa-plus-circle"></i>
+          নতুন গেম
+        </button>
+        <button class="btn-secondary" onclick="closeLeaderboard()">
+          <i class="fas fa-arrow-left"></i>
+          ফিরুন
+        </button>
+      </div>
     </div>
+  </div>
 
-    <script src="script.js"></script>
+  <!-- হিস্ট্রি মডাল -->
+  <div id="historyModal" class="modal">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-timeline"></i>
+          গেম হিস্ট্রি
+        </h2>
+        <button class="modal-close" onclick="closeHistory()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="historyContainer" class="history-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- টোস্ট নোটিফিকেশন কন্টেইনার -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- কনফেটি ইফেক্ট (বিজয়ী ঘোষণার জন্য) -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <!-- জাভাস্ক্রিপ্ট -->
+  <script src="script.js"></script>
 </body>
-  </html>
+</html>
