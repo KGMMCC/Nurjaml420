@@ -1,1317 +1,778 @@
-// ===== গ্লোবাল ভ্যারিয়েবল =====
-let db;
-let currentUser = null;
-const PRICES = {
-    'চা': 5,
-    'দুধ চা': 10,
-    'রয়েল': 7,
-    'লাকি': 12,
-    'কলা': 8,
-    'সিগারেট': 15,
-    'পান': 10,
-    'অন্যান্য': 0
-};
+"use strict";
 
-// ===== DOM লোড হওয়ার পর =====
-document.addEventListener('DOMContentLoaded', function() {
-    // লোডিং স্ক্রিন 2 সেকেন্ড পর হাইড করুন
-    setTimeout(() => {
-        document.getElementById('loadingScreen').style.opacity = '0';
-        setTimeout(() => {
-            document.getElementById('loadingScreen').classList.add('hidden');
-        }, 500);
-    }, 2000);
-    
-    // IndexedDB সেট আপ
-    initDatabase();
-    
-    // ইভেন্ট লিসেনার সেট আপ
-    setupEventListeners();
-    
-    // সেশন চেক করুন
-    checkSession();
-    
-    // দাম আপডেট করুন
-    updatePrice();
-});
+// ========== গ্লোবাল স্টেট ==========
+let players = [];
+let totalScores = [];
+let playerStats = [];
+let roundHistory = [];
+let currentRound = 1;
+let currentCallValues = [];
+let gameActive = false;
 
-// ===== ডাটাবেস ইনিশিয়ালাইজেশন =====
-function initDatabase() {
-    const request = indexedDB.open('TeaShopDB', 2);
-    
-    request.onupgradeneeded = function(event) {
-        db = event.target.result;
-        
-        // ব্যবহারকারীদের জন্য অবজেক্ট স্টোর
-        if (!db.objectStoreNames.contains('users')) {
-            const userStore = db.createObjectStore('users', { keyPath: 'email' });
-            userStore.createIndex('name', 'name', { unique: false });
-        }
-        
-        // লেনদেনের জন্য আলাদা অবজেক্ট স্টোর (স্কেলেবিলিটির জন্য)
-        if (!db.objectStoreNames.contains('transactions')) {
-            const transactionStore = db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
-            transactionStore.createIndex('userEmail', 'userEmail', { unique: false });
-            transactionStore.createIndex('date', 'date', { unique: false });
-        }
-    };
-    
-    request.onsuccess = function(event) {
-        db = event.target.result;
-        console.log('ডাটাবেস সফলভাবে খোলা হয়েছে');
-        
-        // ব্যবহারকারীদের লোড করুন
-        loadUserList();
-    };
-    
-    request.onerror = function(event) {
-        console.error('ডাটাবেস ত্রুটি:', event.target.error);
-        showNotification('ডাটাবেস ত্রুটি!', 'আপনার ব্রাউজার IndexedDB সাপোর্ট করে না।', 'error');
-    };
+// ========== ডোম এলিমেন্ট ==========
+const setupPanel = document.getElementById('setupPanel');
+const gamePanel = document.getElementById('gamePanel');
+const bonusArea = document.getElementById('bonusArea');
+const callArea = document.getElementById('callArea');
+const callPhase = document.getElementById('callPhase');
+const trickPhase = document.getElementById('trickPhase');
+const roundTitle = document.getElementById('roundTitle');
+const currentRoundSpan = document.getElementById('currentRound');
+const totalRoundsSpan = document.getElementById('totalRounds');
+const scoreboardBody = document.getElementById('scoreboardBody');
+const nameFieldsContainer = document.getElementById('nameFieldsContainer');
+const statusText = document.getElementById('statusText');
+const statusPhase = document.getElementById('statusPhase');
+const toastContainer = document.getElementById('toastContainer');
+const confettiCanvas = document.getElementById('confettiCanvas');
+const particlesContainer = document.getElementById('particles');
+
+// ========== থিম ম্যানেজমেন্ট ==========
+function setTheme(theme) {
+  document.body.className = `theme-${theme}`;
+  
+  document.querySelectorAll('.theme-option').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  document.querySelector(`.theme-option[onclick="setTheme('${theme}')"]`).classList.add('active');
+  
+  localStorage.setItem('breezeTheme', theme);
+  showToast(`${theme} থিম অ্যাক্টিভেটেড`, 'success');
 }
 
-// ===== ইভেন্ট লিসেনার সেটআপ =====
-function setupEventListeners() {
-    // লগইন ফর্ম
-    document.getElementById('loginFormElement').addEventListener('submit', function(e) {
-        e.preventDefault();
-        login();
-    });
-    
-    // রেজিস্টার ফর্ম
-    document.getElementById('registerFormElement').addEventListener('submit', function(e) {
-        e.preventDefault();
-        register();
-    });
-    
-    // এন্ট্রি ফর্ম
-    document.getElementById('entryForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        addEntry();
-    });
-    
-    // আইটেম সিলেক্ট চেঞ্জ
-    document.getElementById('item').addEventListener('change', function() {
-        updatePrice();
-        toggleCustomFields();
-    });
-    
-    // পরিমাণ ইনপুট চেঞ্জ
-    document.getElementById('quantity').addEventListener('input', updateTotalPrice);
-    
-    // পেমেন্ট স্ট্যাটাস চেঞ্জ
-    document.getElementById('paymentStatus').addEventListener('change', updateDueAmount);
-    
-    // পরিশোধিত টাকা চেঞ্জ
-    document.getElementById('paidAmount').addEventListener('input', updateDueAmount);
-    
-    // কাস্টম প্রাইস চেঞ্জ
-    document.getElementById('customPrice').addEventListener('input', updateCustomPrice);
+// ========== পার্টিকেল ইফেক্ট ==========
+function createParticles() {
+  if (!particlesContainer) return;
+  
+  for (let i = 0; i < 50; i++) {
+    const particle = document.createElement('div');
+    particle.style.cssText = `
+      position: absolute;
+      width: ${Math.random() * 3}px;
+      height: ${Math.random() * 3}px;
+      background: rgba(255, 255, 255, ${Math.random() * 0.3});
+      border-radius: 50%;
+      left: ${Math.random() * 100}%;
+      top: ${Math.random() * 100}%;
+      animation: float ${Math.random() * 10 + 5}s linear infinite;
+      pointer-events: none;
+    `;
+    particlesContainer.appendChild(particle);
+  }
 }
 
-// ===== সেশন চেক =====
-function checkSession() {
-    const userEmail = sessionStorage.getItem('user');
-    if (userEmail) {
-        loadUser(userEmail);
-    }
-}
-
-// ===== ট্যাব সুইচ =====
-function switchTab(tab) {
-    // ট্যাব বাটন আপডেট
-    document.getElementById('loginTab').classList.remove('active');
-    document.getElementById('registerTab').classList.remove('active');
-    
-    // ট্যাব কন্টেন্ট আপডেট
-    document.getElementById('loginForm').classList.remove('active');
-    document.getElementById('registerForm').classList.remove('active');
-    
-    if (tab === 'login') {
-        document.getElementById('loginTab').classList.add('active');
-        document.getElementById('loginForm').classList.add('active');
+// ========== প্যানেল সুইচিং ==========
+function switchPanel(panel) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  
+  if (panel === 'setup') {
+    setupPanel.classList.add('active');
+    event.currentTarget.classList.add('active');
+  } else if (panel === 'game') {
+    if (players.length > 0) {
+      gamePanel.classList.add('active');
+      event.currentTarget.classList.add('active');
     } else {
-        document.getElementById('registerTab').classList.add('active');
-        document.getElementById('registerForm').classList.add('active');
+      showToast('প্রথমে খেলোয়াড় সেটআপ করুন', 'error');
     }
+  }
 }
 
-// ===== পাসওয়ার্ড টগল =====
-function togglePassword(inputId) {
-    const input = document.getElementById(inputId);
-    const toggleIcon = input.parentNode.querySelector('.password-toggle i');
+// ========== কাউন্ট অ্যাডজাস্ট ==========
+function adjustCount(delta) {
+  const input = document.getElementById('playerCount');
+  let value = parseInt(input.value) + delta;
+  if (value < 2) value = 2;
+  if (value > 6) value = 6;
+  input.value = value;
+}
+
+// ========== টোস্ট নোটিফিকেশন ==========
+function showToast(message, type = 'info', duration = 3000) {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  
+  let icon = 'fa-circle-info';
+  if (type === 'success') icon = 'fa-circle-check';
+  if (type === 'error') icon = 'fa-circle-exclamation';
+  
+  toast.innerHTML = `
+    <i class="fas ${icon}"></i>
+    <span>${message}</span>
+  `;
+  
+  toastContainer.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.animation = 'slideOutRight 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ========== কনফেটি ইফেক্ট ==========
+function shootConfetti() {
+  const canvas = confettiCanvas;
+  const ctx = canvas.getContext('2d');
+  
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  
+  const particles = [];
+  const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+  
+  for (let i = 0; i < 150; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      size: Math.random() * 8 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      speed: Math.random() * 5 + 2,
+      angle: Math.random() * Math.PI * 2
+    });
+  }
+  
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    if (input.type === 'password') {
-        input.type = 'text';
-        toggleIcon.classList.remove('fa-eye');
-        toggleIcon.classList.add('fa-eye-slash');
+    let stillFalling = false;
+    
+    particles.forEach(p => {
+      p.y += p.speed;
+      p.x += Math.sin(p.angle) * 0.5;
+      
+      if (p.y < canvas.height + 50) {
+        stillFalling = true;
+      }
+      
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    });
+    
+    if (stillFalling) {
+      requestAnimationFrame(animate);
     } else {
-        input.type = 'password';
-        toggleIcon.classList.remove('fa-eye-slash');
-        toggleIcon.classList.add('fa-eye');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+  }
+  
+  animate();
 }
 
-// ===== রেজিস্টার ফাংশন =====
-function register() {
-    const name = document.getElementById('registerName').value.trim();
-    const email = document.getElementById('registerEmail').value.trim().toLowerCase();
-    const password = document.getElementById('registerPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    // ভ্যালিডেশন
-    if (!name || !email || !password) {
-        showNotification('তথ্য অসম্পূর্ণ!', 'সব ফিল্ড পূরণ করুন।', 'error');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showNotification('পাসওয়ার্ড মিলছে না!', 'পাসওয়ার্ড নিশ্চিতকরণ মিলছে না।', 'error');
-        return;
-    }
-    
-    if (password.length < 6) {
-        showNotification('দুর্বল পাসওয়ার্ড!', 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।', 'error');
-        return;
-    }
-    
-    const transaction = db.transaction(['users'], 'readwrite');
-    const userStore = transaction.objectStore('users');
-    
-    // প্রথমে চেক করুন ইমেইল আছে কিনা
-    const checkRequest = userStore.get(email);
-    
-    checkRequest.onsuccess = function() {
-        if (checkRequest.result) {
-            showNotification('ইমেইল বিদ্যমান!', 'এই ইমেইল দিয়ে ইতিমধ্যে রেজিস্টার করা হয়েছে।', 'error');
-            return;
-        }
-        
-        // নতুন ইউজার তৈরি করুন
-        const newUser = {
-            name: name,
-            email: email,
-            password: password,
-            avatarColor: getRandomColor(),
-            joinDate: new Date().toISOString(),
-            ledger: []
-        };
-        
-        const addRequest = userStore.add(newUser);
-        
-        addRequest.onsuccess = function() {
-            showNotification('সফল রেজিস্টার!', `${name}, আপনার একাউন্ট সফলভাবে তৈরি হয়েছে।`, 'success');
-            
-            // ফর্ম রিসেট
-            document.getElementById('registerFormElement').reset();
-            
-            // লগইন ট্যাবে সুইচ করুন
-            switchTab('login');
-            
-            // ব্যবহারকারী তালিকা আপডেট করুন
-            loadUserList();
-        };
-        
-        addRequest.onerror = function() {
-            showNotification('রেজিস্টার ব্যর্থ!', 'একাউন্ট তৈরি করতে সমস্যা হচ্ছে।', 'error');
-        };
-    };
+// ========== নাম ফিল্ড জেনারেট ==========
+function generateNameFields() {
+  const count = parseInt(document.getElementById('playerCount').value);
+  
+  const avatars = ['👑', '⚡', '🌟', '🔥', '💎', '🎯'];
+  let html = '';
+  
+  for (let i = 0; i < count; i++) {
+    html += `
+      <div class="name-input-wrapper">
+        <span class="player-avatar">${avatars[i]}</span>
+        <input type="text" id="playerName${i}" 
+               placeholder="প্লেয়ার ${i+1}" 
+               value="প্লেয়ার ${i+1}">
+      </div>
+    `;
+  }
+  
+  nameFieldsContainer.innerHTML = html;
+  showToast(`${count} জন প্লেয়ারের ফিল্ড তৈরি হয়েছে`, 'success');
 }
 
-// ===== লগইন ফাংশন =====
-function login() {
-    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-    const password = document.getElementById('loginPassword').value;
-    
-    if (!email || !password) {
-        showNotification('তথ্য অসম্পূর্ণ!', 'ইমেইল ও পাসওয়ার্ড দিন।', 'error');
-        return;
-    }
-    
-    const transaction = db.transaction(['users'], 'readonly');
-    const userStore = transaction.objectStore('users');
-    const request = userStore.get(email);
-    
-    request.onsuccess = function() {
-        const user = request.result;
-        
-        if (!user || user.password !== password) {
-            showNotification('লগইন ব্যর্থ!', 'ভুল ইমেইল বা পাসওয়ার্ড।', 'error');
-            return;
-        }
-        
-        // সেশন স্টোরেজে সেভ করুন
-        sessionStorage.setItem('user', user.email);
-        
-        // ইউজার লোড করুন
-        loadUser(user.email);
-        
-        showNotification('লগইন সফল!', `${user.name}, স্বাগতম!`, 'success');
-    };
-    
-    request.onerror = function() {
-        showNotification('ডাটাবেস ত্রুটি!', 'লগইন প্রক্রিয়ায় সমস্যা।', 'error');
-    };
-}
-
-// ===== ব্যবহারকারী লোড =====
-function loadUser(email) {
-    const transaction = db.transaction(['users'], 'readonly');
-    const userStore = transaction.objectStore('users');
-    const request = userStore.get(email);
-    
-    request.onsuccess = function() {
-        currentUser = request.result;
-        
-        if (!currentUser) {
-            sessionStorage.removeItem('user');
-            return;
-        }
-        
-        // অ্যাপ দেখান
-        showApp();
-        
-        // ব্যবহারকারীর তথ্য আপডেট করুন
-        updateUserInfo();
-        
-        // ড্যাশবোর্ড আপডেট করুন
-        updateDashboard();
-        
-        // হিসাব বই আপডেট করুন
-        renderLedger();
-        
-        // বন্ধুদের তালিকা আপডেট করুন
-        loadFriendsList();
-    };
-}
-
-// ===== অ্যাপ দেখান =====
-function showApp() {
-    document.getElementById('authPage').classList.add('hidden');
-    document.getElementById('appPage').classList.remove('hidden');
-    
-    // ডিফল্ট সেকশন দেখান
-    showSection('home');
-}
-
-// ===== সেকশন দেখান =====
-function showSection(sectionId) {
-    // সব সেকশন লুকান
-    const sections = document.querySelectorAll('.section');
-    sections.forEach(section => {
-        section.classList.remove('active');
+// ========== গেম স্টার্ট ==========
+function startBonusRound() {
+  const count = parseInt(document.getElementById('playerCount').value);
+  
+  // প্লেয়ার নাম সংগ্রহ
+  players = [];
+  playerStats = [];
+  
+  for (let i = 0; i < count; i++) {
+    let nameField = document.getElementById(`playerName${i}`);
+    let name = nameField ? nameField.value.trim() : '';
+    if (name === '') name = `প্লেয়ার ${i+1}`;
+    players.push(name);
+    playerStats.push({
+      correctCalls: 0,
+      bonusPoints: 0,
+      totalRounds: 0
     });
+  }
+  
+  totalScores = new Array(players.length).fill(0);
+  currentRound = 1;
+  roundHistory = [];
+  currentCallValues = [];
+  
+  // UI আপডেট
+  setupPanel.classList.remove('active');
+  gamePanel.classList.add('active');
+  
+  document.querySelectorAll('.nav-item')[0].classList.remove('active');
+  document.querySelectorAll('.nav-item')[1].classList.add('active');
+  
+  updateRoundCounter();
+  showBonusRound();
+  updateScoreboard();
+  updateStatus('বোনাস রাউন্ড চলছে', '🎁');
+  showToast('বোনাস রাউন্ড শুরু হয়েছে!', 'success');
+}
+
+// ========== বোনাস রাউন্ড দেখান ==========
+function showBonusRound() {
+  bonusArea.style.display = 'block';
+  callArea.style.display = 'none';
+  roundTitle.innerHTML = '🎁 বোনাস রাউন্ড';
+  
+  const grid = document.getElementById('bonusPlayersGrid');
+  grid.innerHTML = '';
+  
+  players.forEach((player, idx) => {
+    const card = createPlayerCard(player, idx, 'bonus');
+    grid.appendChild(card);
+  });
+}
+
+// ========== প্লেয়ার কার্ড তৈরি ==========
+function createPlayerCard(player, idx, type) {
+  const card = document.createElement('div');
+  card.className = 'player-card';
+  
+  const avatars = ['👑', '⚡', '🌟', '🔥', '💎', '🎯'];
+  
+  if (type === 'bonus') {
+    card.innerHTML = `
+      <div class="player-card-header">
+        <span class="player-avatar-large">${avatars[idx]}</span>
+        <h4>${player}</h4>
+      </div>
+      <div class="input-pair">
+        <label>উঠেছে</label>
+        <input type="number" id="bonus${idx}" min="0" value="" placeholder="০" step="1">
+      </div>
+      <div class="hint">
+        <i class="fas fa-gift"></i>
+        বোনাস রাউন্ডে সব উঠানো যোগ হবে
+      </div>
+    `;
+  } else if (type === 'call') {
+    card.innerHTML = `
+      <div class="player-card-header">
+        <span class="player-avatar-large">${avatars[idx]}</span>
+        <h4>${player}</h4>
+      </div>
+      <div class="input-pair">
+        <label>কল</label>
+        <input type="number" id="call${idx}" min="0" value="" placeholder="০" step="1">
+      </div>
+      <div class="hint">
+        <i class="fas fa-lightbulb"></i>
+        আপনি কত trick পাবেন মনে করেন?
+      </div>
+    `;
+  } else if (type === 'trick') {
+    card.innerHTML = `
+      <div class="player-card-header">
+        <span class="player-avatar-large">${avatars[idx]}</span>
+        <h4>${player}</h4>
+      </div>
+      <div class="call-summary">
+        <span class="call-badge">কল: ${currentCallValues[idx] || 0}</span>
+      </div>
+      <div class="input-pair">
+        <label>উঠেছে</label>
+        <input type="number" id="trick${idx}" min="0" value="" placeholder="০" step="1">
+      </div>
+      <div class="hint">
+        <i class="fas fa-calculator"></i>
+        কলের সাথে মিলিয়ে স্কোর হবে
+      </div>
+    `;
+  }
+  
+  return card;
+}
+
+// ========== বোনাস রাউন্ড সাবমিট ==========
+function submitBonusRound() {
+  if (currentRound !== 1) return;
+  
+  let hasValue = false;
+  const roundData = {
+    round: 1,
+    type: 'bonus',
+    players: []
+  };
+  
+  players.forEach((_, i) => {
+    const input = document.getElementById(`bonus${i}`);
+    let got = parseInt(input?.value, 10) || 0;
+    if (got > 0) hasValue = true;
     
-    // নির্বাচিত সেকশন দেখান
-    document.getElementById(sectionId + 'Section').classList.add('active');
+    totalScores[i] += got;
     
-    // নেভিগেশন বাটন আপডেট করুন
-    const navButtons = document.querySelectorAll('.nav-btn');
-    navButtons.forEach(button => {
-        button.classList.remove('active');
+    roundData.players.push({
+      name: players[i],
+      got: got,
+      score: got
     });
-    
-    // সক্রিয় নেভ বাটন সেট করুন
-    let activeNavButton;
-    switch(sectionId) {
-        case 'home': activeNavButton = navButtons[0]; break;
-        case 'addEntry': activeNavButton = navButtons[1]; break;
-        case 'ledger': activeNavButton = navButtons[2]; break;
-        case 'friends': activeNavButton = navButtons[3]; break;
-        case 'profile': activeNavButton = navButtons[4]; break;
-    }
-    
-    if (activeNavButton) {
-        activeNavButton.classList.add('active');
-    }
-    
-    // নির্দিষ্ট সেকশনের জন্য অতিরিক্ত কাজ
-    if (sectionId === 'profile') {
-        updateProfileSection();
-    }
+  });
+  
+  if (!hasValue) {
+    showToast('অনুগ্রহ করে উঠানো সংখ্যা দিন', 'error');
+    return;
+  }
+  
+  roundHistory.push(roundData);
+  
+  currentRound = 2;
+  updateRoundCounter();
+  roundTitle.innerHTML = '📞 কল রাউন্ড';
+  
+  bonusArea.style.display = 'none';
+  callArea.style.display = 'block';
+  callPhase.classList.remove('hidden');
+  trickPhase.classList.add('hidden');
+  
+  loadCallPhase();
+  updateScoreboard();
+  updateStatus('কল ফেজ - সবাই কল দিন', '📞');
+  showToast('বোনাস রাউন্ড জমা হয়েছে!', 'success');
 }
 
-// ===== ব্যবহারকারীর তথ্য আপডেট =====
-function updateUserInfo() {
-    if (!currentUser) return;
+// ========== কল ফেজ লোড ==========
+function loadCallPhase() {
+  const grid = document.getElementById('callPlayersGrid');
+  grid.innerHTML = '';
+  
+  players.forEach((player, idx) => {
+    const card = createPlayerCard(player, idx, 'call');
+    grid.appendChild(card);
+  });
+}
+
+// ========== কল ফেজ সাবমিট ==========
+function submitCallPhase() {
+  currentCallValues = [];
+  let hasValue = false;
+  
+  players.forEach((_, i) => {
+    const input = document.getElementById(`call${i}`);
+    let call = parseInt(input?.value, 10) || 0;
+    currentCallValues[i] = call;
+    if (call > 0) hasValue = true;
+  });
+  
+  if (!hasValue) {
+    showToast('অনুগ্রহ করে কল দিন', 'error');
+    return;
+  }
+  
+  callPhase.classList.add('hidden');
+  trickPhase.classList.remove('hidden');
+  
+  loadTrickPhase();
+  updateStatus('ট্রিক ফেজ - কত trick উঠলো দিন', '🎯');
+  showToast('কল সাবমিট হয়েছে!', 'success');
+}
+
+// ========== ট্রিক ফেজ লোড ==========
+function loadTrickPhase() {
+  const grid = document.getElementById('trickPlayersGrid');
+  grid.innerHTML = '';
+  
+  players.forEach((player, idx) => {
+    const card = createPlayerCard(player, idx, 'trick');
+    grid.appendChild(card);
+  });
+}
+
+// ========== ট্রিক ফেজ সাবমিট ==========
+function submitTrickPhase() {
+  let hasValue = false;
+  const roundData = {
+    round: currentRound,
+    type: 'call',
+    players: []
+  };
+  
+  players.forEach((_, i) => {
+    const input = document.getElementById(`trick${i}`);
+    let got = parseInt(input?.value, 10) || 0;
+    if (got > 0) hasValue = true;
     
-    // নাম আপডেট
-    document.getElementById('userName').textContent = currentUser.name;
-    document.getElementById('welcomeName').textContent = currentUser.name;
-    document.getElementById('profileName').textContent = currentUser.name;
-    document.getElementById('profileNameInput').value = currentUser.name;
-    document.getElementById('profileEmail').textContent = currentUser.email;
+    let call = currentCallValues[i] || 0;
+    let score = calculateScore(call, got);
     
-    // সদস্য তারিখ
-    const joinDate = new Date(currentUser.joinDate);
-    document.getElementById('memberSince').textContent = joinDate.toLocaleDateString('bn-BD');
+    totalScores[i] += score;
     
-    // অ্যাভাটার রঙ
-    const avatarColor = currentUser.avatarColor || getRandomColor();
-    document.getElementById('userAvatar').style.backgroundColor = avatarColor;
-    document.getElementById('profileAvatar').style.backgroundColor = avatarColor;
+    if (call === got) playerStats[i].correctCalls++;
+    if (got > call) playerStats[i].bonusPoints += (got - call);
+    playerStats[i].totalRounds++;
     
-    // প্রোফাইল সেকশনে রঙ সিলেক্ট করুন
-    const colorOptions = document.querySelectorAll('.color-option');
-    colorOptions.forEach(option => {
-        option.classList.remove('selected');
-        if (option.style.backgroundColor === rgbToHex(avatarColor)) {
-            option.classList.add('selected');
-        }
+    roundData.players.push({
+      name: players[i],
+      call: call,
+      got: got,
+      score: score
     });
+  });
+  
+  if (!hasValue) {
+    showToast('অনুগ্রহ করে উঠানো সংখ্যা দিন', 'error');
+    return;
+  }
+  
+  roundHistory.push(roundData);
+  
+  currentRound++;
+  updateRoundCounter();
+  
+  callPhase.classList.remove('hidden');
+  trickPhase.classList.add('hidden');
+  
+  loadCallPhase();
+  updateScoreboard();
+  updateStatus(`রাউন্ড ${currentRound} - কল ফেজ শুরু`, '📞');
+  showToast(`রাউন্ড ${currentRound-1} সম্পন্ন!`, 'success');
 }
 
-// ===== ড্যাশবোর্ড আপডেট =====
-function updateDashboard() {
-    if (!currentUser || !currentUser.ledger) return;
-    
-    const today = new Date().toLocaleDateString('bn-BD');
-    const currentMonth = new Date().getMonth() + 1;
-    const currentYear = new Date().getFullYear();
-    
-    let todayExpense = 0;
-    let monthExpense = 0;
-    let totalDue = 0;
-    let totalEntries = currentUser.ledger.length;
-    
-    currentUser.ledger.forEach(entry => {
-        // আজকের খরচ
-        if (entry.date === today) {
-            todayExpense += entry.amount;
-        }
-        
-        // এই মাসের খরচ
-        const entryDate = new Date(entry.timestamp || entry.date);
-        if (entryDate.getMonth() + 1 === currentMonth && entryDate.getFullYear() === currentYear) {
-            monthExpense += entry.amount;
-        }
-        
-        // মোট বাকি
-        if (entry.paymentStatus === 'due' || entry.paymentStatus === 'partial') {
-            totalDue += entry.dueAmount || (entry.amount - (entry.paidAmount || 0));
-        }
-    });
-    
-    // ড্যাশবোর্ড আপডেট
-    document.getElementById('todayExpense').textContent = todayExpense + ' টাকা';
-    document.getElementById('monthExpense').textContent = monthExpense + ' টাকা';
-    document.getElementById('totalEntries').textContent = totalEntries;
-    document.getElementById('totalDue').textContent = totalDue + ' টাকা';
-    
-    // সাম্প্রতিক লেনদেন আপডেট
-    updateRecentTransactions();
+// ========== স্কোর ক্যালকুলেশন ==========
+function calculateScore(call, got) {
+  call = parseInt(call, 10) || 0;
+  got = parseInt(got, 10) || 0;
+  
+  if (got > call) {
+    return call + ((got - call) * 0.1);
+  } else if (call === got) {
+    return call;
+  } else {
+    return -call;
+  }
 }
 
-// ===== সাম্প্রতিক লেনদেন আপডেট =====
-function updateRecentTransactions() {
-    if (!currentUser || !currentUser.ledger) return;
-    
-    const transactionsList = document.getElementById('recentTransactions');
-    
-    // সর্বশেষ ৫টি লেনদেন
-    const recentTransactions = [...currentUser.ledger]
-        .sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date))
-        .slice(0, 5);
-    
-    if (recentTransactions.length === 0) {
-        transactionsList.innerHTML = '<p class="empty-message">এখনো কোনো লেনদেন নেই। প্রথম লেনদেন যোগ করুন!</p>';
-        return;
+// ========== স্কোরবোর্ড আপডেট ==========
+function updateScoreboard() {
+  if (!players.length) return;
+  
+  let html = '';
+  
+  // ফর্ম ক্যালকুলেশন
+  players.forEach((player, i) => {
+    let form = '⚪';
+    if (playerStats[i].totalRounds > 0) {
+      const correctRatio = playerStats[i].correctCalls / playerStats[i].totalRounds;
+      if (correctRatio > 0.6) form = '🔥';
+      else if (correctRatio < 0.3) form = '❄️';
     }
     
-    let transactionsHTML = '';
+    const avatars = ['👑', '⚡', '🌟', '🔥', '💎', '🎯'];
     
-    recentTransactions.forEach(transaction => {
-        const itemIcon = getItemIcon(transaction.item);
-        const statusClass = `status-${transaction.paymentStatus}`;
-        const statusText = getStatusText(transaction.paymentStatus);
-        
-        transactionsHTML += `
-            <div class="transaction-item">
-                <div class="transaction-left">
-                    <div class="transaction-icon" style="background-color: ${getItemColor(transaction.item)}">
-                        <i class="${itemIcon}"></i>
-                    </div>
-                    <div class="transaction-details">
-                        <h4>${transaction.item}</h4>
-                        <p>${transaction.date} • ${transaction.quantity || 1}টি</p>
-                    </div>
-                </div>
-                <div class="transaction-right">
-                    <div class="transaction-amount">${transaction.amount} টাকা</div>
-                    <div class="transaction-status ${statusClass}">${statusText}</div>
-                </div>
-            </div>
-        `;
-    });
-    
-    transactionsList.innerHTML = transactionsHTML;
+    html += `
+      <tr>
+        <td>
+          <span style="margin-right: 8px;">${avatars[i]}</span>
+          ${player}
+        </td>
+        <td class="score-cell">${totalScores[i].toFixed(1)}</td>
+        <td>${playerStats[i].correctCalls}</td>
+        <td>${playerStats[i].bonusPoints}</td>
+        <td>${form}</td>
+      </tr>
+    `;
+  });
+  
+  scoreboardBody.innerHTML = html;
 }
 
-// ===== দ্রুত যোগ করুন =====
-function quickAdd(item, quantity) {
-    document.getElementById('item').value = item;
-    document.getElementById('quantity').value = quantity;
-    updatePrice();
-    
-    // এন্ট্রি সেকশনে যান
-    showSection('addEntry');
-    
-    // ফোকাস দিন
-    setTimeout(() => {
-        document.getElementById('paymentStatus').focus();
-    }, 300);
-    
-    showNotification('দ্রুত যোগ', `${quantity}টি ${item} নির্বাচিত হয়েছে`, 'info');
+// ========== রাউন্ড কাউন্টার আপডেট ==========
+function updateRoundCounter() {
+  currentRoundSpan.textContent = currentRound;
+  totalRoundsSpan.textContent = roundHistory.length + 1;
 }
 
-// ===== মূল্য আপডেট =====
-function updatePrice() {
-    const item = document.getElementById('item').value;
-    const quantity = parseInt(document.getElementById('quantity').value) || 1;
-    let price = PRICES[item] || 0;
-    
-    // কাস্টম আইটেম হলে
-    if (item === 'অন্যান্য') {
-        const customPrice = parseFloat(document.getElementById('customPrice').value) || 0;
-        price = customPrice;
-    }
-    
-    document.getElementById('price').value = price;
-    updateTotalPrice();
+// ========== স্ট্যাটাস আপডেট ==========
+function updateStatus(text, emoji) {
+  statusText.textContent = text;
+  statusPhase.textContent = emoji;
 }
 
-// ===== কাস্টম ফিল্ড টগল =====
-function toggleCustomFields() {
-    const item = document.getElementById('item').value;
-    const isCustom = item === 'অন্যান্য';
-    
-    // লেবেল টগল
-    document.getElementById('customItemLabel').classList.toggle('hidden', !isCustom);
-    document.getElementById('customPriceLabel').classList.toggle('hidden', !isCustom);
-    
-    // ইনপুট টগল
-    document.getElementById('customItem').classList.toggle('hidden', !isCustom);
-    document.getElementById('customPrice').classList.toggle('hidden', !isCustom);
-    
-    // কাস্টম না হলে মান রিসেট করুন
-    if (!isCustom) {
-        document.getElementById('customItem').value = '';
-        document.getElementById('customPrice').value = '';
-    }
-}
-
-// ===== মোট মূল্য আপডেট =====
-function updateTotalPrice() {
-    const quantity = parseInt(document.getElementById('quantity').value) || 1;
-    const price = parseFloat(document.getElementById('price').value) || 0;
-    const totalPrice = quantity * price;
-    
-    document.getElementById('totalPrice').value = totalPrice;
-    updateDueAmount();
-}
-
-// ===== কাস্টম মূল্য আপডেট =====
-function updateCustomPrice() {
-    const customPrice = parseFloat(document.getElementById('customPrice').value) || 0;
-    document.getElementById('price').value = customPrice;
-    updateTotalPrice();
-}
-
-// ===== বাকি টাকা আপডেট =====
-function updateDueAmount() {
-    const totalPrice = parseFloat(document.getElementById('totalPrice').value) || 0;
-    const paymentStatus = document.getElementById('paymentStatus').value;
-    let paidAmount = parseFloat(document.getElementById('paidAmount').value) || 0;
-    
-    // পেমেন্ট স্ট্যাটাস অনুযায়ী
-    if (paymentStatus === 'paid') {
-        paidAmount = totalPrice;
-        document.getElementById('paidAmount').value = totalPrice;
-    } else if (paymentStatus === 'due') {
-        paidAmount = 0;
-        document.getElementById('paidAmount').value = 0;
-    }
-    
-    // পেইড অ্যামাউন্ট টোটালের বেশি হতে পারবে না
-    if (paidAmount > totalPrice) {
-        paidAmount = totalPrice;
-        document.getElementById('paidAmount').value = totalPrice;
-    }
-    
-    const dueAmount = totalPrice - paidAmount;
-    document.getElementById('dueAmount').value = dueAmount;
-}
-
-// ===== পরিমাণ পরিবর্তন =====
-function changeQuantity(change) {
-    const quantityInput = document.getElementById('quantity');
-    let quantity = parseInt(quantityInput.value) || 1;
-    
-    quantity += change;
-    
-    if (quantity < 1) quantity = 1;
-    if (quantity > 100) quantity = 100;
-    
-    quantityInput.value = quantity;
-    updateTotalPrice();
-}
-
-// ===== এন্ট্রি যোগ করুন =====
-function addEntry() {
-    if (!currentUser) {
-        showNotification('লগইন প্রয়োজন!', 'দয়া করে প্রথমে লগইন করুন।', 'error');
-        return;
-    }
-    
-    const item = document.getElementById('item').value;
-    const quantity = parseInt(document.getElementById('quantity').value) || 1;
-    const price = parseFloat(document.getElementById('price').value) || 0;
-    const totalPrice = parseFloat(document.getElementById('totalPrice').value) || 0;
-    const paymentStatus = document.getElementById('paymentStatus').value;
-    const paidAmount = parseFloat(document.getElementById('paidAmount').value) || 0;
-    const dueAmount = parseFloat(document.getElementById('dueAmount').value) || 0;
-    const notes = document.getElementById('notes').value.trim();
-    
-    // ভ্যালিডেশন
-    if (!item) {
-        showNotification('আইটেম প্রয়োজন!', 'দয়া করে একটি আইটেম নির্বাচন করুন।', 'error');
-        return;
-    }
-    
-    if (item === 'অন্যান্য' && !document.getElementById('customItem').value.trim()) {
-        showNotification('কাস্টম আইটেম প্রয়োজন!', 'দয়া করে কাস্টম আইটেমের নাম দিন।', 'error');
-        return;
-    }
-    
-    // এন্ট্রি অবজেক্ট তৈরি করুন
-    const entry = {
-        id: Date.now(), // ইউনিক আইডি
-        userEmail: currentUser.email,
-        item: item === 'অন্যান্য' ? document.getElementById('customItem').value.trim() : item,
-        quantity: quantity,
-        unitPrice: price,
-        amount: totalPrice,
-        paymentStatus: paymentStatus,
-        paidAmount: paidAmount,
-        dueAmount: dueAmount,
-        notes: notes,
-        date: new Date().toLocaleDateString('bn-BD'),
-        timestamp: new Date().toISOString()
-    };
-    
-    // IndexedDB-তে সেভ করুন
-    const transaction = db.transaction(['users', 'transactions'], 'readwrite');
-    const userStore = transaction.objectStore('users');
-    const transactionStore = transaction.objectStore('transactions');
-    
-    // ইউজারের লেজারে যোগ করুন
-    currentUser.ledger.push(entry);
-    
-    const updateUserRequest = userStore.put(currentUser);
-    
-    updateUserRequest.onsuccess = function() {
-        // আলাদা ট্রানজেকশন স্টোরেও সেভ করুন
-        transactionStore.add(entry);
-        
-        showNotification('এন্ট্রি সংরক্ষিত!', `${entry.item} সফলভাবে যোগ করা হয়েছে।`, 'success');
-        
-        // ফর্ম রিসেট
-        resetEntryForm();
-        
-        // ড্যাশবোর্ড ও লেজার আপডেট
-        updateDashboard();
-        renderLedger();
-        
-        // হোম সেকশনে ফিরে যান
-        showSection('home');
-    };
-    
-    updateUserRequest.onerror = function() {
-        showNotification('সংরক্ষণ ব্যর্থ!', 'এন্ট্রি সংরক্ষণ করতে সমস্যা হচ্ছে।', 'error');
-    };
-}
-
-// ===== এন্ট্রি ফর্ম রিসেট =====
-function resetEntryForm() {
-    document.getElementById('entryForm').reset();
-    document.getElementById('item').value = '';
-    document.getElementById('quantity').value = 1;
-    document.getElementById('price').value = 5;
-    document.getElementById('totalPrice').value = 5;
-    document.getElementById('paymentStatus').value = 'due';
-    document.getElementById('paidAmount').value = 0;
-    document.getElementById('dueAmount').value = 5;
-    document.getElementById('notes').value = '';
-    
-    // কাস্টম ফিল্ড লুকান
-    toggleCustomFields();
-}
-
-// ===== লেজার রেন্ডার =====
-function renderLedger(filter = 'all') {
-    if (!currentUser || !currentUser.ledger) return;
-    
-    let filteredLedger = [...currentUser.ledger];
-    const today = new Date().toLocaleDateString('bn-BD');
-    
-    // ফিল্টার প্রয়োগ করুন
-    if (filter === 'today') {
-        filteredLedger = filteredLedger.filter(entry => entry.date === today);
-    } else if (filter === 'due') {
-        filteredLedger = filteredLedger.filter(entry => 
-            entry.paymentStatus === 'due' || entry.paymentStatus === 'partial'
-        );
-    }
-    
-    // তারিখ অনুসারে সাজান (নতুন থেকে পুরাতন)
-    filteredLedger.sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
-    
-    // সারি তৈরি করুন
-    const ledgerRows = document.getElementById('ledgerRows');
-    
-    if (filteredLedger.length === 0) {
-        ledgerRows.innerHTML = `
-            <tr class="empty-row">
-                <td colspan="8">কোনো এন্ট্রি পাওয়া যায়নি। প্রথম এন্ট্রি যোগ করুন!</td>
-            </tr>
-        `;
-        
-        // সামারি আপডেট
-        updateLedgerSummary([]);
-        return;
-    }
-    
-    let rowsHTML = '';
-    let totalAmount = 0;
-    let totalPaid = 0;
-    let totalDue = 0;
-    
-    filteredLedger.forEach(entry => {
-        const statusClass = `status-${entry.paymentStatus}`;
-        const statusText = getStatusText(entry.paymentStatus);
-        const itemIcon = getItemIcon(entry.item);
-        
-        totalAmount += entry.amount;
-        totalPaid += entry.paidAmount || 0;
-        totalDue += entry.dueAmount || (entry.amount - (entry.paidAmount || 0));
-        
-        rowsHTML += `
-            <tr>
-                <td>${entry.date}</td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div class="action-btn" style="background-color: ${getItemColor(entry.item)}; color: white;">
-                            <i class="${itemIcon}"></i>
-                        </div>
-                        ${entry.item}
-                    </div>
-                </td>
-                <td>${entry.quantity || 1}টি</td>
-                <td>${entry.amount} টাকা</td>
-                <td>${entry.paidAmount || 0} টাকা</td>
-                <td>${entry.dueAmount || (entry.amount - (entry.paidAmount || 0))} টাকা</td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="action-btn" onclick="editEntry(${entry.id})" title="এডিট">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-btn" onclick="deleteEntry(${entry.id})" title="ডিলিট">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-    
-    ledgerRows.innerHTML = rowsHTML;
-    
-    // সামারি আপডেট
-    updateLedgerSummary(filteredLedger);
-}
-
-// ===== লেজার সামারি আপডেট =====
-function updateLedgerSummary(ledger) {
-    let totalAmount = 0;
-    let totalPaid = 0;
-    let totalDue = 0;
-    
-    ledger.forEach(entry => {
-        totalAmount += entry.amount;
-        totalPaid += entry.paidAmount || 0;
-        totalDue += entry.dueAmount || (entry.amount - (entry.paidAmount || 0));
-    });
-    
-    document.getElementById('ledgerTotal').textContent = totalAmount + ' টাকা';
-    document.getElementById('ledgerPaid').textContent = totalPaid + ' টাকা';
-    document.getElementById('ledgerDue').textContent = totalDue + ' টাকা';
-    document.getElementById('ledgerEntries').textContent = ledger.length;
-}
-
-// ===== লেজার ফিল্টার =====
-function filterLedger(filterType) {
-    renderLedger(filterType);
-    
-    // বাটন স্টাইল আপডেট
-    const buttons = document.querySelectorAll('.ledger-actions button');
-    buttons.forEach(button => button.classList.remove('active'));
-    
-    // সক্রিয় বাটন হাইলাইট করুন
-    let activeButton;
-    switch(filterType) {
-        case 'all': activeButton = buttons[0]; break;
-        case 'today': activeButton = buttons[1]; break;
-        case 'due': activeButton = buttons[2]; break;
-    }
-    
-    if (activeButton) {
-        activeButton.classList.add('active');
-    }
-}
-
-// ===== এন্ট্রি এডিট =====
-function editEntry(entryId) {
-    if (!currentUser || !currentUser.ledger) return;
-    
-    const entry = currentUser.ledger.find(e => e.id === entryId);
-    if (!entry) return;
-    
-    // এডিট মোডে যান
-    showSection('addEntry');
-    
-    // ফর্ম পূরণ করুন
-    setTimeout(() => {
-        // আইটেম সেট করুন
-        const itemSelect = document.getElementById('item');
-        const isCustom = !PRICES.hasOwnProperty(entry.item);
-        
-        if (isCustom) {
-            itemSelect.value = 'অন্যান্য';
-            document.getElementById('customItem').value = entry.item;
-            document.getElementById('customPrice').value = entry.unitPrice;
-        } else {
-            itemSelect.value = entry.item;
-        }
-        
-        // অন্যান্য ফিল্ড
-        document.getElementById('quantity').value = entry.quantity || 1;
-        document.getElementById('paymentStatus').value = entry.paymentStatus;
-        document.getElementById('paidAmount').value = entry.paidAmount || 0;
-        document.getElementById('notes').value = entry.notes || '';
-        
-        // কাস্টম ফিল্ড টগল
-        toggleCustomFields();
-        
-        // মূল্য আপডেট
-        updatePrice();
-        
-        showNotification('এডিট মোড', `${entry.item} এন্ট্রি এডিট করতে প্রস্তুত`, 'info');
-    }, 300);
-}
-
-// ===== এন্ট্রি ডিলিট =====
-function deleteEntry(entryId) {
-    if (!confirm('আপনি কি এই এন্ট্রি ডিলিট করতে চান? এই কাজটি বিপরীতমুখী নয়।')) {
-        return;
-    }
-    
-    if (!currentUser || !currentUser.ledger) return;
-    
-    // লেজার থেকে রিমুভ করুন
-    const entryIndex = currentUser.ledger.findIndex(e => e.id === entryId);
-    if (entryIndex === -1) return;
-    
-    const deletedEntry = currentUser.ledger[entryIndex];
-    currentUser.ledger.splice(entryIndex, 1);
-    
-    // IndexedDB-তে আপডেট করুন
-    const transaction = db.transaction(['users', 'transactions'], 'readwrite');
-    const userStore = transaction.objectStore('users');
-    const transactionStore = transaction.objectStore('transactions');
-    
-    // ইউজার আপডেট
-    const updateUserRequest = userStore.put(currentUser);
-    
-    updateUserRequest.onsuccess = function() {
-        // ট্রানজেকশন স্টোর থেকে ডিলিট
-        transactionStore.delete(entryId);
-        
-        showNotification('এন্ট্রি ডিলিট', `${deletedEntry.item} এন্ট্রি ডিলিট করা হয়েছে`, 'success');
-        
-        // UI আপডেট
-        updateDashboard();
-        renderLedger();
-    };
-    
-    updateUserRequest.onerror = function() {
-        showNotification('ডিলিট ব্যর্থ', 'এন্ট্রি ডিলিট করতে সমস্যা হচ্ছে', 'error');
-    };
-}
-
-// ===== ব্যবহারকারী তালিকা লোড =====
-function loadUserList() {
-    if (!db) return;
-    
-    const transaction = db.transaction(['users'], 'readonly');
-    const userStore = transaction.objectStore('users');
-    const request = userStore.getAll();
-    
-    request.onsuccess = function() {
-        const users = request.result;
-        const userList = document.getElementById('userList');
-        
-        if (!users || users.length === 0) {
-            userList.innerHTML = '<p class="empty-message">এখনো কোনো বন্ধু রেজিস্টার করেননি...</p>';
-            return;
-        }
-        
-        let usersHTML = '';
-        
-        users.forEach(user => {
-            const firstLetter = user.name.charAt(0).toUpperCase();
-            const entryCount = user.ledger ? user.ledger.length : 0;
-            
-            usersHTML += `
-                <div class="user-item">
-                    <div class="user-avatar-small" style="background-color: ${user.avatarColor || getRandomColor()}">
-                        ${firstLetter}
-                    </div>
-                    <div class="user-details">
-                        <h4>${user.name}</h4>
-                        <p>${entryCount} এন্ট্রি</p>
-                    </div>
-                </div>
-            `;
-        });
-        
-        userList.innerHTML = usersHTML;
-    };
-}
-
-// ===== বন্ধুদের তালিকা লোড =====
-function loadFriendsList() {
-    if (!db || !currentUser) return;
-    
-    const transaction = db.transaction(['users'], 'readonly');
-    const userStore = transaction.objectStore('users');
-    const request = userStore.getAll();
-    
-    request.onsuccess = function() {
-        const users = request.result;
-        const friendsList = document.getElementById('friendsList');
-        
-        // বর্তমান ব্যবহারকারী বাদ দিন
-        const friends = users.filter(user => user.email !== currentUser.email);
-        
-        if (friends.length === 0) {
-            friendsList.innerHTML = `
-                <div class="friend-card placeholder">
-                    <div class="friend-avatar">
-                        <i class="fas fa-user-plus"></i>
-                    </div>
-                    <h3>আপনিই হোন প্রথম</h3>
-                    <p>অন্যান্য বন্ধুদের আমন্ত্রণ জানান</p>
-                </div>
-            `;
-            return;
-        }
-        
-        let friendsHTML = '';
-        
-        friends.forEach(friend => {
-            const totalSpent = friend.ledger ? 
-                friend.ledger.reduce((sum, entry) => sum + entry.amount, 0) : 0;
-            const entryCount = friend.ledger ? friend.ledger.length : 0;
-            const firstLetter = friend.name.charAt(0).toUpperCase();
-            
-            friendsHTML += `
-                <div class="friend-card">
-                    <div class="friend-avatar" style="background-color: ${friend.avatarColor || getRandomColor()}">
-                        ${firstLetter}
-                    </div>
-                    <h3>${friend.name}</h3>
-                    <p>সদস্য since: ${new Date(friend.joinDate).toLocaleDateString('bn-BD')}</p>
-                    <div class="friend-stats">
-                        <div class="friend-stat">
-                            <span class="number">${entryCount}</span>
-                            <span class="label">এন্ট্রি</span>
-                        </div>
-                        <div class="friend-stat">
-                            <span class="number">${totalSpent}</span>
-                            <span class="label">টাকা</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        friendsList.innerHTML = friendsHTML;
-    };
-}
-
-// ===== প্রোফাইল সেকশন আপডেট =====
-function updateProfileSection() {
-    if (!currentUser) return;
-    
-    const totalSpent = currentUser.ledger ? 
-        currentUser.ledger.reduce((sum, entry) => sum + entry.amount, 0) : 0;
-    
-    const totalEntries = currentUser.ledger ? currentUser.ledger.length : 0;
-    
-    // গড় গণনা করুন
-    let avgSpent = 0;
-    if (totalEntries > 0) {
-        const joinDate = new Date(currentUser.joinDate);
-        const today = new Date();
-        const daysSinceJoin = Math.max(1, Math.floor((today - joinDate) / (1000 * 60 * 60 * 24)));
-        avgSpent = Math.round(totalSpent / daysSinceJoin);
-    }
-    
-    const dueAmount = currentUser.ledger ? 
-        currentUser.ledger.reduce((sum, entry) => {
-            if (entry.paymentStatus === 'due' || entry.paymentStatus === 'partial') {
-                return sum + (entry.dueAmount || (entry.amount - (entry.paidAmount || 0)));
-            }
-            return sum;
-        }, 0) : 0;
-    
-    // প্রোফাইল স্ট্যাটস আপডেট
-    document.getElementById('profileTotalSpent').textContent = totalSpent;
-    document.getElementById('profileTotalEntries').textContent = totalEntries;
-    document.getElementById('profileAvgSpent').textContent = avgSpent;
-    document.getElementById('profileDueAmount').textContent = dueAmount;
-}
-
-// ===== প্রোফাইল আপডেট =====
-function updateProfile() {
-    if (!currentUser) return;
-    
-    const newName = document.getElementById('profileNameInput').value.trim();
-    
-    if (!newName) {
-        showNotification('নাম প্রয়োজন', 'দয়া করে একটি নাম লিখুন', 'error');
-        return;
-    }
-    
-    // নাম আপডেট
-    currentUser.name = newName;
-    
-    // IndexedDB-তে সেভ করুন
-    const transaction = db.transaction(['users'], 'readwrite');
-    const userStore = transaction.objectStore('users');
-    
-    const updateRequest = userStore.put(currentUser);
-    
-    updateRequest.onsuccess = function() {
-        showNotification('প্রোফাইল আপডেট', 'আপনার প্রোফাইল সফলভাবে আপডেট হয়েছে', 'success');
-        
-        // UI আপডেট
-        updateUserInfo();
-        loadUserList();
-        loadFriendsList();
-    };
-    
-    updateRequest.onerror = function() {
-        showNotification('আপডেট ব্যর্থ', 'প্রোফাইল আপডেট করতে সমস্যা হচ্ছে', 'error');
-    };
-}
-
-// ===== অ্যাভাটার রঙ পরিবর্তন =====
-function changeAvatarColor(color) {
-    if (!currentUser) return;
-    
-    // কালার সিলেক্ট করুন
-    const colorOptions = document.querySelectorAll('.color-option');
-    colorOptions.forEach(option => {
-        option.classList.remove('selected');
-        if (option.style.backgroundColor === color) {
-            option.classList.add('selected');
-        }
-    });
-    
-    // ইউজার আপডেট করুন
-    currentUser.avatarColor = color;
-    
-    // UI আপডেট করুন
-    document.getElementById('userAvatar').style.backgroundColor = color;
-    document.getElementById('profileAvatar').style.backgroundColor = color;
-    
-    showNotification('রঙ পরিবর্তন', 'প্রোফাইল রঙ সফলভাবে পরিবর্তন করা হয়েছে', 'success');
-}
-
-// ===== প্রোফাইল রিসেট =====
-function resetProfile() {
-    if (!currentUser) return;
-    
-    document.getElementById('profileNameInput').value = currentUser.name;
-    
-    // ডিফল্ট রঙে ফিরে যান
-    const defaultColor = '#1f7a4d';
-    changeAvatarColor(defaultColor);
-}
-
-// ===== সব ডেটা মুছুন =====
-function clearAllData() {
-    if (!confirm('আপনি কি নিশ্চিত? এটি আপনার সব হিসাব মুছে ফেলবে। এই কাজটি বিপরীতমুখী নয়।')) {
-        return;
-    }
-    
-    if (!currentUser) return;
-    
-    // লেজার খালি করুন
-    currentUser.ledger = [];
-    
-    // IndexedDB-তে সেভ করুন
-    const transaction = db.transaction(['users', 'transactions'], 'readwrite');
-    const userStore = transaction.objectStore('users');
-    const transactionStore = transaction.objectStore('transactions');
-    
-    // ইউজার আপডেট
-    const updateUserRequest = userStore.put(currentUser);
-    
-    updateUserRequest.onsuccess = function() {
-        // এই ইউজারের সব ট্রানজেকশন ডিলিট করুন
-        const index = transactionStore.index('userEmail');
-        const range = IDBKeyRange.only(currentUser.email);
-        const request = index.openCursor(range);
-        
-        request.onsuccess = function(event) {
-            const cursor = event.target.result;
-            if (cursor) {
-                transactionStore.delete(cursor.primaryKey);
-                cursor.continue();
-            }
-        };
-        
-        showNotification('ডেটা মুছে ফেলা হয়েছে', 'আপনার সব হিসাব মুছে ফেলা হয়েছে', 'success');
-        
-        // UI আপডেট
-        updateDashboard();
-        renderLedger();
-        updateProfileSection();
-    };
-}
-
-// ===== একাউন্ট ডিলিট =====
-function deleteAccount() {
-    if (!confirm('আপনি কি নিশ্চিত? এটি আপনার সম্পূর্ণ একাউন্ট মুছে ফেলবে। এই কাজটি বিপরীতমুখী নয়।')) {
-        return;
-    }
-    
-    if (!currentUser) return;
-    
-    const transaction = db.transaction(['users', 'transactions'], 'readwrite');
-    const userStore = transaction.objectStore('users');
-    const transactionStore = transaction.objectStore('transactions');
-    
-    // ইউজার ডিলিট
-    const deleteUserRequest = userStore.delete(currentUser.email);
-    
-    deleteUserRequest.onsuccess = function() {
-        // এই ইউজারের সব ট্রানজেকশন ডিলিট করুন
-        const index = transactionStore.index('userEmail');
-        const range = IDBKeyRange.only(currentUser.email);
-        const request = index.openCursor(range);
-        
-        request.onsuccess = function(event) {
-            const cursor = event.target.result;
-            if (cursor) {
-                transactionStore.delete(cursor.primaryKey);
-                cursor.continue();
-            }
-        };
-        
-        showNotification('একাউন্ট ডিলিট', 'আপনার একাউন্ট সফলভাবে ডিলিট করা হয়েছে', 'success');
-        
-        // লগআউট করুন
-        setTimeout(logout, 1500);
-    };
-}
-
-// ===== আমন্ত্রণ লিংক কপি =====
-function copyInviteLink() {
-    const inviteLink = window.location.href;
-    navigator.clipboard.writeText(inviteLink)
-        .then(() => {
-            showNotification('লিংক কপি', 'আমন্ত্রণ লিংক ক্লিপবোর্ডে কপি করা হয়েছে', 'success');
-        })
-        .catch(() => {
-            showNotification('কপি ব্যর্থ', 'লিংক কপি করতে সমস্যা হচ্ছে', 'error');
-        });
-}
-
-// ===== লেজার এক্সপোর্ট =====
-function exportLedger() {
-    if (!currentUser || !currentUser.ledger || currentUser.ledger.length === 0) {
-        showNotification('এক্সপোর্ট ব্যর্থ', 'এক্সপোর্ট করার মতো কোনো ডেটা নেই', 'warning');
-        return;
-    }
-    
-    // CSV হেডার
-    let csv = 'তারিখ,আইটেম,পরিমাণ,ইউনিট মূল্য,মোট মূল্য,পরিশোধিত,বাকি,স্ট্যাটাস,নোটস\n';
-    
-    // ডেটা রো
-    currentUser.ledger.forEach(entry => {
-        const row = [
-            `"${entry.date}"`,
-            `"${entry.item}"`,
-            `"${entry.quantity || 1}"`,
-            `"${entry.unitPrice}"`,
-            `"${entry.amount}"`,
-            `"${entry.paidAmount || 0}"`,
-            `"${entry.dueAmount || (entry.amount - (entry.paidAmount || 0))}"`,
-            `"${getStatusText(entry.paymentStatus)}"`,
-            `"${entry.notes || ''}"`
-        ];
-        
-        csv += row.join(',') + '\n';
-    });
-    
-    // ফাইল ডাউনলোড
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `নুরুজ্জামানের_চায়ের_দোকান_${currentUser.name}_${new Date().toLocaleDateString('bn-BD')}.csv`);
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showNotification('এক্সপোর্ট সফল', 'আপনার হিসাব CSV ফাইল হিসেবে ডাউনলোড করা হয়েছে', 'success');
-}
-
-// ===== লগআউট =====
-function logout() {
-    sessionStorage.removeItem('user');
-    currentUser = null;
-    
-    // অথেন্টিকেশন পেজ দেখান
-    document.getElementById('appPage').classList.add('hidden');
-    document.getElementById('authPage').classList.remove('hidden');
-    
-    // ব্যবহারকারী তালিকা রিফ্রেশ
-    loadUserList();
-    
-    showNotification('লগআউট', 'আপনি সফলভাবে লগআউট করেছেন', 'info');
-}
-
-// ===== ইউটিলিটি ফাংশন =====
-
-// নোটিফিকেশন দেখান
-function showNotification(title, message, type = 'info') {
-    const notificationArea = document.getElementById('notificationArea');
-    
-    const icons = {
-        'success': 'fas fa-check-circle',
-        'error': 'fas fa-exclamation-circle',
-        'warning': 'fas fa-exclamation-triangle',
-        'info': 'fas fa-info-circle'
-    };
-    
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <div class="notification-icon">
-            <i class="${icons[type]}"></i>
-        </div>
-        <div class="notification-content">
-            <h4>${title}</h4>
-            <p>${message}</p>
-        </div>
+// ========== স্ট্যাটস টগল ==========
+function toggleStats() {
+  const panel = document.getElementById('statsPanel');
+  const grid = document.getElementById('statsGrid');
+  
+  if (panel.classList.contains('hidden')) {
+    // স্ট্যাটস আপডেট
+    const totalRounds = roundHistory.length;
+    const callRounds = roundHistory.filter(r => r.type === 'call').length;
+    const totalCorrect = playerStats.reduce((acc, s) => acc + s.correctCalls, 0);
+    const totalBonus = playerStats.reduce((acc, s) => acc + s.bonusPoints, 0);
+    
+    grid.innerHTML = `
+      <div class="stat-item">
+        <div class="stat-value">${totalRounds}</div>
+        <div class="stat-label">মোট রাউন্ড</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">${callRounds}</div>
+        <div class="stat-label">কল রাউন্ড</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">${totalCorrect}</div>
+        <div class="stat-label">সঠিক কল</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">${totalBonus.toFixed(1)}</div>
+        <div class="stat-label">বোনাস</div>
+      </div>
     `;
     
-    notificationArea.appendChild(notification);
+    panel.classList.remove('hidden');
+  } else {
+    panel.classList.add('hidden');
+  }
+}
+
+// ========== স্কোরবোর্ড রিফ্রেশ ==========
+function refreshBoard() {
+  updateScoreboard();
+  showToast('স্কোরবোর্ড রিফ্রেশ করা হয়েছে', 'info');
+}
+
+// ========== গেম শেষ ==========
+function endGame() {
+  if (!players.length) return;
+  openLeaderboard();
+  shootConfetti();
+}
+
+// ========== লিডারবোর্ড খুলুন ==========
+function openLeaderboard() {
+  if (!players.length) {
+    showToast('কোনো গেম ডাটা নেই', 'error');
+    return;
+  }
+  
+  const sorted = players.map((p, i) => ({
+    name: p,
+    score: totalScores[i],
+    stats: playerStats[i]
+  })).sort((a, b) => b.score - a.score);
+  
+  const podium = document.getElementById('podiumContainer');
+  const list = document.getElementById('leaderboardList');
+  
+  // পোডিয়াম
+  podium.innerHTML = '';
+  for (let i = 0; i < Math.min(3, sorted.length); i++) {
+    const p = sorted[i];
+    const colors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+    const medals = ['🥇', '🥈', '🥉'];
     
-    // ৩ সেকেন্ড পর নোটিফিকেশন রিমুভ করুন
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
+    podium.innerHTML += `
+      <div class="podium-item">
+        <div class="podium-rank" style="background: ${colors[i]};">${medals[i]}</div>
+        <div class="podium-name">${p.name}</div>
+        <div class="podium-score">${p.score.toFixed(1)}</div>
+      </div>
+    `;
+  }
+  
+  // লিডারবোর্ড লিস্ট
+  list.innerHTML = '<h3 style="margin-bottom: 1rem;">ফাইনাল র‌্যাঙ্কিং</h3>';
+  
+  sorted.forEach((p, i) => {
+    const medal = i === 0 ? '🏆' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+    const color = i < 3 ? ['#FFD700', '#C0C0C0', '#CD7F32'][i] : 'var(--primary)';
+    
+    list.innerHTML += `
+      <div class="leaderboard-item">
+        <div class="leaderboard-rank" style="background: ${color};">${medal}</div>
+        <div class="leaderboard-info">
+          <span class="leaderboard-name">${p.name}</span>
+          <span class="leaderboard-score">${p.score.toFixed(1)}</span>
+        </div>
+      </div>
+    `;
+  });
+  
+  document.getElementById('leaderboardModal').style.display = 'flex';
+}
+
+// ========== হিস্ট্রি খুলুন ==========
+function openHistory() {
+  if (roundHistory.length === 0) {
+    showToast('কোনো হিস্ট্রি নেই', 'error');
+    return;
+  }
+  
+  const container = document.getElementById('historyContainer');
+  container.innerHTML = '';
+  
+  roundHistory.slice().reverse().forEach((round, idx) => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    
+    let html = `
+      <div class="history-round">
+        <i class="fas ${round.type === 'bonus' ? 'fa-gift' : 'fa-phone'}"></i>
+        রাউন্ড ${round.round} (${round.type === 'bonus' ? 'বোনাস' : 'কল'})
+      </div>
+    `;
+    
+    round.players.forEach(p => {
+      if (round.type === 'bonus') {
+        html += `
+          <div class="history-detail">
+            <span>${p.name}</span>
+            <span>উঠেছে: ${p.got} = +${p.score}</span>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="history-detail">
+            <span>${p.name}</span>
+            <span>কল: ${p.call}, উঠেছে: ${p.got} = ${p.score.toFixed(1)}</span>
+          </div>
+        `;
+      }
+    });
+    
+    div.innerHTML = html;
+    container.appendChild(div);
+  });
+  
+  document.getElementById('historyModal').style.display = 'flex';
+}
+
+// ========== মডাল ক্লোজ ==========
+function closeLeaderboard() {
+  document.getElementById('leaderboardModal').style.display = 'none';
+}
+
+function closeHistory() {
+  document.getElementById('historyModal').style.display = 'none';
+}
+
+// ========== নতুন গেম ==========
+function newGame() {
+  players = [];
+  totalScores = [];
+  playerStats = [];
+  roundHistory = [];
+  currentRound = 1;
+  currentCallValues = [];
+  
+  localStorage.removeItem('breezeGame');
+  
+  document.getElementById('leaderboardModal').style.display = 'none';
+  gamePanel.classList.remove('active');
+  setupPanel.classList.add('active');
+  
+  document.querySelectorAll('.nav-item')[1].classList.remove('active');
+  document.querySelectorAll('.nav-item')[0].classList.add('active');
+  
+  showToast('নতুন গেম শুরু! সেটআপ করুন', 'success');
+}
+
+// ========== গেম সেভ/লোড ==========
+function saveGame() {
+  const state = {
+    players,
+    totalScores,
+    playerStats,
+    roundHistory,
+    currentRound,
+    currentCallValues
+  };
+  localStorage.setItem('breezeGame', JSON.stringify(state));
+}
+
+function loadGame() {
+  const saved = localStorage.getItem('breezeGame');
+  if (saved) {
+    try {
+      const state = JSON.parse(saved);
+      players = state.players || [];
+      totalScores = state.totalScores || [];
+      playerStats = state.playerStats || [];
+      roundHistory = state.roundHistory || [];
+      currentRound = state.currentRound || 1;
+      currentCallValues = state.currentCallValues || [];
+      
+      if (players.length > 0) {
+        setupPanel.classList.remove('active');
+        gamePanel.classList.add('active');
+        
+        if (currentRound === 1) {
+          showBonusRound();
+        } else {
+          roundTitle.innerHTML = '📞 কল রাউন্ড';
+          bonusArea.style.display = 'none';
+          callArea.style.display = 'block';
+          callPhase.classList.remove('hidden');
+          trickPhase.classList.add('hidden');
+          loadCallPhase();
         }
-    }, 3000);
-}
-
-// র্যান্ডম কালার জেনারেট করুন
-function getRandomColor() {
-    const colors = [
-        '#1f7a4d', '#4a6fa5', '#d35400', '#8e44ad', 
-        '#c0392b', '#16a085', '#27ae60', '#2980b9',
-        '#8e44ad', '#2c3e50', '#f39c12', '#e74c3c'
-    ];
-    
-    return colors[Math.floor(Math.random() * colors.length)];
-}
-
-// আইটেম আইকন পেতে
-function getItemIcon(item) {
-    const icons = {
-        'চা': 'fas fa-coffee',
-        'দুধ চা': 'fas fa-mug-hot',
-        'রয়েল': 'fas fa-cookie',
-        'লাকি': 'fas fa-bread-slice',
-        'কলা': 'fas fa-apple-alt',
-        'সিগারেট': 'fas fa-smoking',
-        'পান': 'fas fa-leaf',
-        'default': 'fas fa-utensils'
-    };
-    
-    return icons[item] || icons.default;
-}
-
-// আইটেম কালার পেতে
-function getItemColor(item) {
-    const colors = {
-        'চা': '#d35400',
-        'দুধ চা': '#f39c12',
-        'রয়েল': '#8e44ad',
-        'লাকি': '#c0392b',
-        'কলা': '#27ae60',
-        'সিগারেট': '#7f8c8d',
-        'পান': '#16a085',
-        'default': '#3498db'
-    };
-    
-    return colors[item] || colors.default;
-}
-
-// স্ট্যাটাস টেক্সট পেতে
-function getStatusText(status) {
-    const statusText = {
-        'paid': 'পরিশোধিত',
-        'due': 'বাকি',
-        'partial': 'আংশিক'
-    };
-    
-    return statusText[status] || status;
-}
-
-// RGB থেকে HEX কনভার্ট
-function rgbToHex(rgb) {
-    // যদি RGB ফরম্যাটে থাকে
-    if (rgb.startsWith('rgb')) {
-        const values = rgb.match(/\d+/g);
-        if (values && values.length >= 3) {
-            const r = parseInt(values[0]).toString(16).padStart(2, '0');
-            const g = parseInt(values[1]).toString(16).padStart(2, '0');
-            const b = parseInt(values[2]).toString(16).padStart(2, '0');
-            return `#${r}${g}${b}`;
-        }
+        
+        updateScoreboard();
+        showToast('গেম লোড করা হয়েছে', 'success');
+      }
+    } catch (e) {
+      console.error('লোড করতে সমস্যা:', e);
     }
-    
-    // যদি HEX ফরম্যাটে থাকে
-    return rgb;
+  }
 }
 
-// ===== স্বাগতম বার্তা =====
+// ========== অটো সেভ ==========
+setInterval(() => {
+  if (players.length > 0) saveGame();
+}, 30000);
+
+// ========== উইন্ডো লোড ==========
 window.onload = function() {
-    // লোডিং স্ক্রিন 2 সেকেন্ড পর হাইড করুন
-    setTimeout(() => {
-        document.getElementById('loadingScreen').style.opacity = '0';
-        setTimeout(() => {
-            document.getElementById('loadingScreen').classList.add('hidden');
-        }, 500);
-    }, 2000);
+  // থিম লোড
+  const savedTheme = localStorage.getItem('breezeTheme') || 'pro';
+  setTheme(savedTheme);
+  
+  // পার্টিকেল তৈরি
+  createParticles();
+  
+  // ডিফল্ট নাম ফিল্ড
+  generateNameFields();
+  
+  // গেম লোড
+  loadGame();
+  
+  // কীবোর্ড শর্টকাট
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeLeaderboard();
+      closeHistory();
+    }
+  });
 };
+
+// ========== গ্লোবাল ফাংশন ==========
+window.switchPanel = switchPanel;
+window.setTheme = setTheme;
+window.adjustCount = adjustCount;
+window.generateNameFields = generateNameFields;
+window.startBonusRound = startBonusRound;
+window.submitBonusRound = submitBonusRound;
+window.submitCallPhase = submitCallPhase;
+window.submitTrickPhase = submitTrickPhase;
+window.endGame = endGame;
+window.openLeaderboard = openLeaderboard;
+window.closeLeaderboard = closeLeaderboard;
+window.openHistory = openHistory;
+window.closeHistory = closeHistory;
+window.newGame = newGame;
+window.toggleStats = toggleStats;
+window.refreshBoard = refreshBoard;
